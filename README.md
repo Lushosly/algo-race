@@ -20,7 +20,9 @@ between O(n²) and O(n log n) algorithms using asynchronous execution loops and 
 - Rendering: HTML5 Canvas API
 
 ## Live Demo
+**[Click Here to start the race](https://lushosly.github.io/algo-race/)**
 
+**_Tip: Cmd ⌘ + Click (macOS) or Ctrl + Click (Windows/Linux) to open in a new tab._**
 =================================== **Developer** =================================
 
 Luis J. Rodriguez Espinal
