@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algo-Race: Sorting Visualizer</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050b14;
+            --panel: #0d1b2a;
+            --text: #e0e1dd;
+            --accent: #64ffda;
+            --slow: #ff0055;
+            --border: #1b263b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* HEADER & LAYOUT */
+        header { 
+            width: 100%; max-width: 850px; 
+            display: flex; flex-direction: column; align-items: center;
+            margin-bottom: 20px; 
+        }
+
+        .top-bar {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 5px;
+        }
+
+        .lang-switch { display: flex; gap: 8px; }
+
+        .lang-btn {
+            background: var(--panel); border: 1px solid #415a77;
+            color: #8892b0; padding: 6px 12px; border-radius: 4px;
+            font-family: 'JetBrains Mono'; font-size: 0.8rem; cursor: pointer;
+        }
+        .lang-btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: bold; }
+
+        h1 { 
+            font-family: 'JetBrains Mono', monospace; 
+            color: var(--accent); margin: 0 0 5px 0;
+            text-shadow: 0 0 10px rgba(100, 255, 218, 0.3);
+            text-align: center;
+        }
+        .subtitle { font-size: 0.9rem; color: #8892b0; text-align: center; }
+
+        /* CONTROLS */
+        .controls-container {
+            background: var(--panel); padding: 20px; border-radius: 16px;
+            border: 1px solid var(--border); display: flex; flex-direction: column;
+            gap: 15px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            width: 100%; max-width: 850px;
+        }
+
+        .control-row {
+            display: flex; justify-content: center; align-items: center;
+            gap: 15px; flex-wrap: wrap;
+        }
+
+        .slider-group {
+            display: flex; align-items: center; gap: 10px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #8892b0;
+        }
+
+        input[type=range] { accent-color: var(--accent); cursor: pointer; }
+
+        button {
+            background: transparent; color: var(--text); border: 1px solid #415a77;
+            padding: 10px 20px; border-radius: 8px; cursor: pointer;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: bold;
+            transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+        }
+        button:hover { border-color: var(--accent); color: var(--accent); }
+        
+        button.primary { background: var(--accent); color: #050b14; border-color: var(--accent); }
+        button.primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(100, 255, 218, 0.3); }
+        
+        button.stop { border-color: #ff0055; color: #ff0055; }
+        button.stop:hover { background: rgba(255, 0, 85, 0.1); }
+
+        /* GRID */
+        .race-track {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+            width: 100%; max-width: 1200px;
+        }
+
+        .algo-card {
+            background: var(--panel); border-radius: 12px;
+            border: 1px solid var(--border); position: relative;
+            overflow: hidden; height: 300px; 
+        }
+
+        .card-content { padding: 15px; height: 100%; display: flex; flex-direction: column; }
+
+        .card-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;
+        }
+
+        .complexity { 
+            font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; 
+            background: #162438; color: #8892b0; margin-left: 8px; 
+        }
+        
+        .stats { font-size: 0.75rem; color: var(--accent); }
+        .info-btn { border: none; padding: 4px; font-size: 1rem; color: #666; cursor: pointer; }
+        .info-btn:hover { color: #fff; }
+
+        canvas { width: 100%; flex-grow: 1; display: block; border-bottom: 2px solid var(--border); }
+
+        /* INFO OVERLAYS */
+        .info-overlay, .global-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(13, 27, 42, 0.98); padding: 25px;
+            display: flex; flex-direction: column; justify-content: center;
+            transform: translateY(100%); transition: transform 0.3s ease-in-out;
+            z-index: 20;
+        }
+        .info-overlay.show { transform: translateY(0); }
+        
+        .info-title { color: var(--accent); font-family: 'JetBrains Mono'; margin-bottom: 10px; font-size: 1.1rem; }
+        .info-text { font-size: 0.85rem; line-height: 1.6; color: #ccc; }
+        .close-info { margin-top: 20px; align-self: flex-start; }
+
+        .global-modal {
+            position: fixed; z-index: 100; top: 0; left: 0;
+            background: rgba(5, 11, 20, 0.95); backdrop-filter: blur(5px);
+            align-items: center; justify-content: center; display: none; transform: none;
+        }
+        .modal-content {
+            background: #0d1b2a; padding: 40px; border-radius: 16px;
+            border: 1px solid var(--accent); max-width: 600px; width: 90%;
+            box-shadow: 0 0 40px rgba(100, 255, 218, 0.1);
+        }
+        .modal-content ul { padding-left: 20px; color: #ccc; font-size: 0.9rem; line-height: 1.8; margin: 15px 0; }
+        .modal-content li strong { color: #fff; }
+
+        @media (max-width: 800px) { .race-track { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="top-bar">
+            <div class="lang-switch">
+                <button class="lang-btn active" onclick="setLang('en')">EN</button>
+                <button class="lang-btn" onclick="setLang('es')">ES</button>
+            </div>
+        </div>
+        <h1>ALGO-RACE</h1>
+        <div class="subtitle" id="t-subtitle">Interactive Sorting Engine • Audio & Visuals</div>
+    </header>
+
+    <div class="controls-container">
+        <div class="control-row">
+            <div class="slider-group">
+                <span id="t-speed">SPEED:</span>
+                <input type="range" id="speedRange" min="1" max="100" value="50">
+            </div>
+            <div class="slider-group">
+                <span id="t-items">ITEMS:</span>
+                <input type="range" id="sizeRange" min="10" max="100" value="50">
+                <span id="sizeVal">50</span>
+            </div>
+        </div>
+        <div class="control-row">
+            <button onclick="toggleAudio()" id="btn-audio">🔇 AUDIO OFF</button>
+            <button onclick="showGlobalGuide()" id="btn-guide">ℹ️ GUIDE</button>
+            <button onclick="resetData()" id="btn-reset">🎲 SHUFFLE</button>
+            <button onclick="startRace()" id="btn-start" class="primary">🏁 START RACE</button>
+        </div>
+    </div>
+
+    <!-- MAIN GRID -->
+    <div class="race-track">
+        <!-- JS INJECTS CARDS HERE -->
+    </div>
+
+    <!-- GLOBAL GUIDE MODAL -->
+    <div id="guide-modal" class="global-modal">
+        <div class="modal-content">
+            <div class="info-title" id="m-title">HOW IT WORKS</div>
+            <div class="info-text" id="m-body">
+                <!-- JS will fill this -->
+            </div>
+            <button class="primary" onclick="closeGlobalGuide()" style="width:100%; margin-top:20px; display:flex; justify-content:center;" id="m-close">UNDERSTOOD</button>
+        </div>
+    </div>
+
+<script>
+    // --- LOCALIZATION DATA ---
+    const TEXT = {
+        'en': {
+            subtitle: "Interactive Sorting Engine • Audio & Visuals",
+            speed: "SPEED:", items: "ITEMS:",
+            audioOff: "🔇 AUDIO OFF", audioOn: "🔊 AUDIO ON",
+            guide: "ℹ️ GUIDE", shuffle: "🎲 SHUFFLE", stop: "🛑 STOP / RESET", start: "🏁 START RACE",
+            ready: "Ready", done: "Done",
+            quickDesc: "The Speed Demon. Picks a 'pivot' and partitions data: smaller to left, larger to right. Recursively sorts partitions. Highly efficient.",
+            mergeDesc: "The Strategist. Recursively divides the list into tiny sub-lists, then merges them back together in sorted order. Stable and reliable.",
+            bubbleDesc: "The Brute Force. Repeatedly steps through the list, swapping adjacent elements if they are wrong. Requires many passes.",
+            selectDesc: "The Scanner. Scans the entire unsorted list to find the absolute smallest item, places it, then repeats. Very inefficient.",
+            close: "CLOSE",
+            modalTitle: "HOW IT WORKS",
+            modalBtn: "UNDERSTOOD",
+            modalHTML: `
+                <p>This engine visualizes <strong>Time Complexity (Big-O)</strong> by running four algorithms side-by-side.</p>
+                <ul>
+                    <li><strong style="color:#00b894">O(n log n):</strong> Fast (Quick, Merge). Divide & Conquer strategy.</li>
+                    <li><strong style="color:#ff0055">O(n²):</strong> Slow (Bubble, Selection). Compare every item against every other item.</li>
+                </ul>
+                <p><strong>Controls:</strong></p>
+                <ul>
+                    <li>Use <strong>SPEED</strong> to study the logic in slow motion.</li>
+                    <li>Use <strong>ITEMS</strong> to stress-test the CPU (Try 100!).</li>
+                    <li>Click <strong>[?]</strong> on any card for specific logic details.</li>
+                </ul>`
+        },
+        'es': {
+            subtitle: "Motor de Ordenamiento Interactivo • Audio y Visuales",
+            speed: "VELOCIDAD:", items: "CANTIDAD:",
+            audioOff: "🔇 SIN AUDIO", audioOn: "🔊 CON AUDIO",
+            guide: "ℹ️ GUÍA", shuffle: "🎲 MEZCLAR", stop: "🛑 DETENER", start: "🏁 INICIAR",
+            ready: "Listo", done: "Fin",
+            quickDesc: "El Demonio de la Velocidad. Elige un 'pivote' y divide los datos: menores a la izquierda, mayores a la derecha. Ordena recursivamente.",
+            mergeDesc: "El Estratega. Divide recursivamente la lista en sub-listas diminutas, luego las 'fusiona' en orden. Rendimiento garantizado y estable.",
+            bubbleDesc: "Fuerza Bruta. Recorre repetidamente la lista, intercambiando elementos adyacentes si están mal. Requiere muchas pasadas. Lento.",
+            selectDesc: "El Escáner. Escanea toda la lista desordenada para encontrar el elemento más pequeño y lo coloca al inicio. Muy ineficiente.",
+            close: "CERRAR",
+            modalTitle: "CÓMO FUNCIONA",
+            modalBtn: "ENTENDIDO",
+            modalHTML: `
+                <p>Este motor visualiza la <strong>Complejidad Temporal (Big-O)</strong> ejecutando cuatro algoritmos a la vez.</p>
+                <ul>
+                    <li><strong style="color:#00b894">O(n log n):</strong> Rápido (Quick, Merge). Estrategia 'Divide y Vencerás'.</li>
+                    <li><strong style="color:#ff0055">O(n²):</strong> Lento (Bubble, Selection). Comparan todo contra todo.</li>
+                </ul>
+                <p><strong>Controles:</strong></p>
+                <ul>
+                    <li>Usa <strong>VELOCIDAD</strong> para estudiar la lógica paso a paso.</li>
+                    <li>Usa <strong>CANTIDAD</strong> para estresar el sistema (¡Prueba 100!).</li>
+                    <li>Haz clic en <strong>[?]</strong> en cualquier tarjeta para ver detalles.</li>
+                </ul>`
+        }
+    };
+
+    // --- ALGORITHMS CONFIG ---
+    const ALGOS_DEF = [
+        { id: 'quick', name: 'QUICK SORT', complexity: 'O(n log n)', descKey: 'quickDesc' },
+        { id: 'merge', name: 'MERGE SORT', complexity: 'O(n log n)', descKey: 'mergeDesc' },
+        { id: 'bubble', name: 'BUBBLE SORT', complexity: 'O(n²)', descKey: 'bubbleDesc' },
+        { id: 'selection', name: 'SELECTION SORT', complexity: 'O(n²)', descKey: 'selectDesc' }
+    ];
+
+    let CUR_LANG = 'en';
+    let dataSize = 50;
+    let delay = 50;
+    let audioEnabled = false;
+    let isRacing = false;
+    let shouldReset = false; 
+    let audioCtx = null;
+    let originalData = [];
+
+    // --- INIT UI ---
+    const track = document.querySelector('.race-track');
+    
+    ALGOS_DEF.forEach(algo => {
+        track.insertAdjacentHTML('beforeend', `
+        <div class="algo-card">
+            <div class="card-content">
+                <div class="card-header">
+                    <div>${algo.name} <span class="complexity" style="color:${algo.complexity.includes('log')?'#00b894':'#ff0055'}">${algo.complexity}</span></div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span class="stats" id="stats-${algo.id}">Ready</span>
+                        <button class="info-btn" onclick="toggleCardInfo('info-${algo.id}')">?</button>
+                    </div>
+                </div>
+                <canvas id="c-${algo.id}"></canvas>
+            </div>
+            <div class="info-overlay" id="info-${algo.id}">
+                <div class="info-title">${algo.name}</div>
+                <div class="info-text" id="desc-${algo.id}">${TEXT.en[algo.descKey]}</div>
+                <button class="close-info" onclick="toggleCardInfo('info-${algo.id}')">CLOSE</button>
+            </div>
+        </div>`);
+    });
+
+    // Populate Initial Modal Content
+    document.getElementById('m-body').innerHTML = TEXT.en.modalHTML;
+
+    // --- VISUALIZER CLASS ---
+    class Visualizer {
+        constructor(id) {
+            this.canvas = document.getElementById(`c-${id}`);
+            this.ctx = this.canvas.getContext('2d');
+            this.statsEl = document.getElementById(`stats-${id}`);
+            const rect = this.canvas.getBoundingClientRect();
+            this.canvas.width = rect.width * 2; this.canvas.height = rect.height * 2;
+            this.ctx.scale(2, 2);
+            this.width = rect.width; this.height = rect.height;
+            this.arr = []; this.comparisons = 0; this.swaps = 0; this.finished = false;
+        }
+
+        reset(data) {
+            this.arr = [...data];
+            this.comparisons = 0; this.swaps = 0; this.finished = false;
+            this.draw();
+            this.statsEl.innerText = TEXT[CUR_LANG].ready;
+        }
+
+        draw(active = -1, secondary = -1) {
+            this.ctx.clearRect(0, 0, this.width, this.height);
+            const barW = this.width / this.arr.length;
+            for (let i = 0; i < this.arr.length; i++) {
+                let h = (this.arr[i] / 100) * this.height;
+                let x = i * barW;
+                let y = this.height - h;
+                if (this.finished) this.ctx.fillStyle = "#00b894";
+                else if (i === active) this.ctx.fillStyle = "#ff0055";
+                else if (i === secondary) this.ctx.fillStyle = "#fee440";
+                else this.ctx.fillStyle = "#64ffda";
+                this.ctx.fillRect(x, y, barW - 1, h);
+            }
+            if(!this.finished) this.statsEl.innerText = `C:${this.comparisons} S:${this.swaps}`;
+        }
+    }
+
+    const visualizers = ALGOS_DEF.map(a => new Visualizer(a.id));
+
+    // --- I18N SYSTEM ---
+    function setLang(lang) {
+        CUR_LANG = lang;
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        const t = TEXT[lang];
+        document.getElementById('t-subtitle').innerText = t.subtitle;
+        document.getElementById('t-speed').innerText = t.speed;
+        document.getElementById('t-items').innerText = t.items;
+        document.getElementById('btn-audio').innerText = audioEnabled ? t.audioOn : t.audioOff;
+        document.getElementById('btn-guide').innerText = t.guide;
+        
+        const resetBtn = document.getElementById('btn-reset');
+        const startBtn = document.getElementById('btn-start');
+        
+        if(isRacing) resetBtn.innerText = t.stop;
+        else resetBtn.innerText = t.shuffle;
+        startBtn.innerText = t.start;
+
+        ALGOS_DEF.forEach(algo => {
+            const el = document.getElementById(`desc-${algo.id}`);
+            if(el) el.innerText = t[algo.descKey];
+        });
+        
+        document.querySelectorAll('.close-info').forEach(b => b.innerText = t.close);
+        document.getElementById('m-title').innerText = t.modalTitle;
+        document.getElementById('m-body').innerHTML = t.modalHTML;
+        document.getElementById('m-close').innerText = t.modalBtn;
+
+        visualizers.forEach(v => {
+            if(v.finished) v.statsEl.innerText = `${t.done}: ${v.comparisons+v.swaps} ops`;
+            else if(v.comparisons === 0) v.statsEl.innerText = t.ready;
+        });
+    }
+
+    // --- LOGIC ---
+    function sleep(ms) {
+        return new Promise((resolve, reject) => {
+            if (shouldReset) reject('RESET');
+            else setTimeout(() => shouldReset ? reject('RESET') : resolve(), ms);
+        });
+    }
+
+    function playTone(val) {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.value = 200 + (val * 6);
+        osc.type = 'square';
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.1);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    // --- ALGORITHMS ---
+    async function runBubble(v) {
+        try {
+            for (let i = 0; i < v.arr.length; i++) {
+                for (let j = 0; j < v.arr.length - i - 1; j++) {
+                    v.comparisons++; v.draw(j, j+1);
+                    if (v.arr[j] > v.arr[j+1]) {
+                        let temp = v.arr[j]; v.arr[j] = v.arr[j+1]; v.arr[j+1] = temp;
+                        v.swaps++;
+                        if(audioEnabled) playTone(v.arr[j]);
+                        await sleep(delay);
+                    }
+                }
+            }
+            finishAlgo(v);
+        } catch(e) {}
+    }
+
+    async function runSelection(v) {
+        try {
+            for (let i = 0; i < v.arr.length; i++) {
+                let min = i;
+                for (let j = i + 1; j < v.arr.length; j++) {
+                    v.comparisons++; v.draw(min, j);
+                    if (v.arr[j] < v.arr[min]) min = j;
+                    await sleep(delay/2);
+                }
+                if (min !== i) {
+                    let temp = v.arr[i]; v.arr[i] = v.arr[min]; v.arr[min] = temp;
+                    v.swaps++; if(audioEnabled) playTone(v.arr[i]); await sleep(delay);
+                }
+            }
+            finishAlgo(v);
+        } catch(e) {}
+    }
+
+    async function runQuick(v) {
+        try {
+            async function partition(low, high) {
+                let pivot = v.arr[high];
+                let i = low - 1;
+                for (let j = low; j < high; j++) {
+                    v.comparisons++; v.draw(j, high);
+                    if (v.arr[j] < pivot) {
+                        i++; let temp = v.arr[i]; v.arr[i] = v.arr[j]; v.arr[j] = temp;
+                        v.swaps++; if(audioEnabled) playTone(v.arr[i]); await sleep(delay);
+                    }
+                }
+                let temp = v.arr[i+1]; v.arr[i+1] = v.arr[high]; v.arr[high] = temp;
+                v.swaps++; return i + 1;
+            }
+            async function sort(low, high) {
+                if (low < high) {
+                    let pi = await partition(low, high);
+                    await Promise.all([sort(low, pi - 1), sort(pi + 1, high)]);
+                }
+            }
+            await sort(0, v.arr.length - 1);
+            finishAlgo(v);
+        } catch(e) {}
+    }
+
+    async function runMerge(v) {
+        try {
+            async function merge(l, m, r) {
+                let n1 = m - l + 1, n2 = r - m;
+                let L = v.arr.slice(l, m+1), R = v.arr.slice(m+1, r+1);
+                let i=0, j=0, k=l;
+                while (i < n1 && j < n2) {
+                    v.comparisons++; v.draw(k); await sleep(delay);
+                    if (L[i] <= R[j]) v.arr[k] = L[i++]; else v.arr[k] = R[j++];
+                    k++; v.swaps++; if(audioEnabled) playTone(v.arr[k-1]);
+                }
+                while (i < n1) { v.arr[k++] = L[i++]; v.draw(k); await sleep(delay); }
+                while (j < n2) { v.arr[k++] = R[j++]; v.draw(k); await sleep(delay); }
+            }
+            async function sort(l, r) {
+                if (l >= r) return;
+                let m = l + parseInt((r - l) / 2);
+                await sort(l, m); await sort(m + 1, r); await merge(l, m, r);
+            }
+            await sort(0, v.arr.length - 1);
+            finishAlgo(v);
+        } catch(e) {}
+    }
+
+    function finishAlgo(v) {
+        v.finished = true;
+        v.draw();
+        v.statsEl.innerText = `${TEXT[CUR_LANG].done}: ${v.comparisons+v.swaps} ops`;
+    }
+
+    // --- CONTROLS ---
+    function resetData() {
+        if (isRacing) {
+            shouldReset = true;
+            setTimeout(() => { shouldReset = false; isRacing = false; genData(); resetUI(); }, 100);
+        } else {
+            genData();
+        }
+    }
+
+    function genData() {
+        originalData = Array.from({length: dataSize}, () => Math.floor(Math.random() * 90) + 10);
+        visualizers.forEach(v => v.reset(originalData));
+    }
+
+    // === START LOGIC ===
+    async function startRace() {
+        if (isRacing) return;
+
+        if (visualizers[0].finished) {
+            genData(); 
+            
+            await new Promise(r => requestAnimationFrame(r));
+        }
+
+        isRacing = true; shouldReset = false;
+        
+        const btnReset = document.getElementById('btn-reset');
+        btnReset.innerText = TEXT[CUR_LANG].stop;
+        btnReset.classList.add('stop');
+        document.getElementById('btn-start').disabled = true;
+        document.getElementById('sizeRange').disabled = true;
+
+        if(!audioCtx && audioEnabled) toggleAudio();
+
+        await Promise.all([runQuick(visualizers[0]), runMerge(visualizers[1]), runBubble(visualizers[2]), runSelection(visualizers[3])]);
+        
+        if (!shouldReset) {
+            isRacing = false; resetUI();
+        }
+    }
+
+    function resetUI() {
+        const btnReset = document.getElementById('btn-reset');
+        btnReset.innerText = TEXT[CUR_LANG].shuffle;
+        btnReset.classList.remove('stop');
+        document.getElementById('btn-start').disabled = false;
+        document.getElementById('sizeRange').disabled = false;
+    }
+
+    // --- EVENTS ---
+    document.getElementById('speedRange').oninput = (e) => delay = 105 - e.target.value;
+    document.getElementById('sizeRange').oninput = (e) => {
+        dataSize = parseInt(e.target.value);
+        document.getElementById('sizeVal').innerText = dataSize;
+        if(!isRacing) resetData();
+    };
+
+    function toggleAudio() {
+        audioEnabled = !audioEnabled;
+        const btn = document.getElementById('btn-audio');
+        btn.innerText = audioEnabled ? TEXT[CUR_LANG].audioOn : TEXT[CUR_LANG].audioOff;
+        btn.style.color = audioEnabled ? "#00b894" : "#e0e1dd";
+    }
+
+    function showGlobalGuide() { document.getElementById('guide-modal').style.display = 'flex'; }
+    function closeGlobalGuide() { document.getElementById('guide-modal').style.display = 'none'; }
+    function toggleCardInfo(id) { document.getElementById(id).classList.toggle('show'); }
+
+    // Init
+    genData();
+
+</script>
+</body>
+</html>
